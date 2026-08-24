@@ -1,0 +1,103 @@
+/* Mobile UI Overlay */
+.mobile-ui-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  display: flex;
+}
+
+/* Left Circular Joystick (Image 2 style) */
+.joystick-zone {
+  width: 50%;
+  height: 100%;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+  padding: 30px;
+}
+
+.joystick-base {
+  width: 90px;
+  height: 90px;
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(8px);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  touch-action: none;
+}
+
+.joystick-thumb {
+  width: 42px;
+  height: 42px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.joystick-label {
+  margin-top: 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Right Swipe Zone */
+.look-zone {
+  width: 50%;
+  height: 100%;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+/* Floating Room Entrance Card (Image 2 style) */
+.room-card-overlay {
+  position: absolute;
+  top: 35%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 30;
+  pointer-events: auto;
+}
+
+.room-card {
+  background: rgba(25, 28, 36, 0.88);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 20px 25px;
+  border-radius: 20px;
+  text-align: center;
+  min-width: 260px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+}
+
+.room-card-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+
+.room-card-subtitle {
+  font-size: 0.85rem;
+  color: #a0aec0;
+  margin-bottom: 16px;
+}
+
+.room-card-btn {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 30px;
+  background: linear-gradient(135deg, #f6ad55, #ed8936);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
