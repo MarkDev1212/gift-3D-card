@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Volume2, VolumeX } from 'lucide-react';
 import { audioManager } from '../utils/audioManager';
 
 export default function MusicControl() {
@@ -11,8 +10,19 @@ export default function MusicControl() {
   };
 
   return (
-    <button className="music-toggle" onClick={toggle} aria-label="Toggle Music">
-      {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-    </button>
+    <div className="music-control-bar">
+      {/* Play/Mute button */}
+      <button className="music-btn" onClick={toggle} aria-label={muted ? 'Unmute music' : 'Mute music'}>
+        {muted ? '🔇' : '🎵'}
+      </button>
+
+      {/* Info + waveform */}
+      <div className="music-info">
+        <span className="music-label">Now Playing</span>
+        <div className={`music-waves ${muted ? 'paused' : ''}`} aria-hidden="true">
+          <span /><span /><span /><span /><span />
+        </div>
+      </div>
+    </div>
   );
 }
