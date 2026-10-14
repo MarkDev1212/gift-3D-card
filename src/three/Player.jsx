@@ -8,7 +8,6 @@ export default function Player({ joystickVector, lookDelta, unlockedRooms, onInt
   const keys = useRef({ forward: 0, right: 0 });
   const rotation = useRef({ yaw: 0, pitch: 0 });
 
-  // Keyboard support for desktop testing
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'w' || e.key === 'W') keys.current.forward = -1;
@@ -32,33 +31,49 @@ export default function Player({ joystickVector, lookDelta, unlockedRooms, onInt
   useFrame((state, delta) => {
     if (isCameraLocked) return;
 
-    // Apply look delta only when finger moves (fixes auto-spin bug!)
-    if (lookDelta.x !== 0 || lookDelta.y !== 0) {
-      rotation.current.yaw -= lookDelta.x;
-      rotation.current.pitch = Math.max(-Math.PI / 4, Math.min(Math.PI / 4, rotation.current.pitch - lookDelta.y));
+    // Fix NaN for look delta
+    const dx = typeof lookDelta?.x === 'number' && !isNaN(lookDelta.x) ? lookDelta.x : 0;
+    const dy = typeof lookDelta?.y === 'number' && !isNaN(lookDelta.y) ? lookDelta.y : 0;
+
+    if (dx !== 0 || dy !== 0) {
+      rotation.current.yaw -= dx;
+      rotation.current.pitch = Math.max(-Math.PI / 4, Math.min(Math.PI / 4, rotation.current.pitch - dy));
     }
 
     camera.rotation.order = 'YXZ';
     camera.rotation.y = rotation.current.yaw;
     camera.rotation.x = rotation.current.pitch;
 
-    // Movement speeds
-    const moveSpeed = 2.8 * delta;
-    const moveX = joystickVector.x !== 0 ? joystickVector.x : keys.current.right;
-    const moveZ = joystickVector.y !== 0 ? joystickVector.y : keys.current.forward;
+    // Fix NaN for joystick input
+    const jX = typeof joystickVector?.x === 'number' && !isNaN(joystickVector.x) ? joystickVector.x : 0;
+    const jY = typeof joystickVector?.y === 'number' && !isNaN(joystickVector.y) ? joystickVector.y : 0;
+
+    const moveX = jX !== 0 ? jX : keys.current.right;
+    const moveZ = jY !== 0 ? jY : keys.current.forward;
 
     if (moveX !== 0 || moveZ !== 0) {
-      const dir = new THREE.Vector3(moveX, 0, moveZ).normalize();
-      dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotation.current.yaw);
+      const moveSpeed = 2.8 * Math.min(delta, 0.1);
+      const len = Math.sqrt(moveX * moveX + moveZ * moveZ);
 
-      const nextX = camera.position.x + dir.x * moveSpeed;
-      const nextZ = camera.position.z + dir.z * moveSpeed;
+      // Prevent 0 division / NaN crash
+      if (len > 0.001) {
+        const normX = moveX / len;
+        const normZ = moveZ / len;
 
-      if (!checkCollision(nextX, camera.position.z, unlockedRooms)) {
-        camera.position.x = nextX;
-      }
-      if (!checkCollision(camera.position.x, nextZ, unlockedRooms)) {
-        camera.position.z = nextZ;
+        const dir = new THREE.Vector3(normX, 0, normZ);
+        dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotation.current.yaw);
+
+        const nextX = camera.position.x + dir.x * moveSpeed;
+        const nextZ = camera.position.z + dir.z * moveSpeed;
+
+        if (!isNaN(nextX) && !isNaN(nextZ)) {
+          if (!checkCollision(nextX, camera.position.z, unlockedRooms)) {
+            camera.position.x = nextX;
+          }
+          if (!checkCollision(camera.position.x, nextZ, unlockedRooms)) {
+            camera.position.z = nextZ;
+          }
+        }
       }
     }
 
