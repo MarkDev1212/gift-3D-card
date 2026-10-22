@@ -3,82 +3,99 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { checkCollision } from '../utils/collision';
 
-export default function Player({ joystickVector, lookDelta, unlockedRooms, onInteractCheck, isCameraLocked }) {
+// Pre-allocated vectors — never create new THREE.* inside useFrame
+const _dir   = new THREE.Vector3();
+const _axis  = new THREE.Vector3(0, 1, 0);
+const _camPos = new THREE.Vector3();
+
+export default function Player({
+  joystickRef,    // { current: { x, y } }  — ref, not state
+  lookRef,        // { current: { x, y } }  — ref, not state
+  unlockedRooms,
+  onInteractCheck,
+  isCameraLocked,
+}) {
   const { camera } = useThree();
-  const keys = useRef({ forward: 0, right: 0 });
-  const rotation = useRef({ yaw: 0, pitch: 0 });
 
+  const keys       = useRef({ forward: 0, right: 0 });
+  const rotation   = useRef({ yaw: 0, pitch: 0 });
+  const frameCount = useRef(0);  // throttle interact check
+
+  /* ── keyboard ── */
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const down = (e) => {
       if (e.key === 'w' || e.key === 'W') keys.current.forward = -1;
-      if (e.key === 's' || e.key === 'S') keys.current.forward = 1;
-      if (e.key === 'a' || e.key === 'A') keys.current.right = -1;
-      if (e.key === 'd' || e.key === 'D') keys.current.right = 1;
+      if (e.key === 's' || e.key === 'S') keys.current.forward =  1;
+      if (e.key === 'a' || e.key === 'A') keys.current.right   = -1;
+      if (e.key === 'd' || e.key === 'D') keys.current.right   =  1;
     };
-    const handleKeyUp = (e) => {
-      if (['w','W','s','S'].includes(e.key)) keys.current.forward = 0;
-      if (['a','A','d','D'].includes(e.key)) keys.current.right = 0;
+    const up = (e) => {
+      if ('wWsS'.includes(e.key)) keys.current.forward = 0;
+      if ('aAdD'.includes(e.key)) keys.current.right   = 0;
     };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup',   up);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup',   up);
     };
   }, []);
 
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
     if (isCameraLocked) return;
 
-    // Fix NaN for look delta
-    const dx = typeof lookDelta?.x === 'number' && !isNaN(lookDelta.x) ? lookDelta.x : 0;
-    const dy = typeof lookDelta?.y === 'number' && !isNaN(lookDelta.y) ? lookDelta.y : 0;
+    // Clamp delta to avoid huge jumps after tab switch
+    const dt = Math.min(delta, 0.05);
 
-    if (dx !== 0 || dy !== 0) {
-      rotation.current.yaw -= dx;
-      rotation.current.pitch = Math.max(-Math.PI / 4, Math.min(Math.PI / 4, rotation.current.pitch - dy));
+    /* ── Look (camera rotation) ── */
+    const lx = lookRef?.current?.x ?? 0;
+    const ly = lookRef?.current?.y ?? 0;
+    if (lx !== 0 || ly !== 0) {
+      rotation.current.yaw  -= lx;
+      rotation.current.pitch = THREE.MathUtils.clamp(
+        rotation.current.pitch - ly,
+        -Math.PI / 4,
+        Math.PI / 4
+      );
+      // Clear after consuming so we don't keep spinning
+      lookRef.current.x = 0;
+      lookRef.current.y = 0;
     }
 
     camera.rotation.order = 'YXZ';
     camera.rotation.y = rotation.current.yaw;
     camera.rotation.x = rotation.current.pitch;
 
-    // Fix NaN for joystick input
-    const jX = typeof joystickVector?.x === 'number' && !isNaN(joystickVector.x) ? joystickVector.x : 0;
-    const jY = typeof joystickVector?.y === 'number' && !isNaN(joystickVector.y) ? joystickVector.y : 0;
+    /* ── Movement ── */
+    const jx = joystickRef?.current?.x ?? 0;
+    const jy = joystickRef?.current?.y ?? 0;
+    const mx = jx !== 0 ? jx : keys.current.right;
+    const mz = jy !== 0 ? jy : keys.current.forward;
 
-    const moveX = jX !== 0 ? jX : keys.current.right;
-    const moveZ = jY !== 0 ? jY : keys.current.forward;
-
-    if (moveX !== 0 || moveZ !== 0) {
-      const moveSpeed = 2.8 * Math.min(delta, 0.1);
-      const len = Math.sqrt(moveX * moveX + moveZ * moveZ);
-
-      // Prevent 0 division / NaN crash
+    if (mx !== 0 || mz !== 0) {
+      const len = Math.sqrt(mx * mx + mz * mz);
       if (len > 0.001) {
-        const normX = moveX / len;
-        const normZ = moveZ / len;
+        const speed = 3.0 * dt;
+        _dir.set(mx / len, 0, mz / len);
+        _dir.applyAxisAngle(_axis, rotation.current.yaw);
 
-        const dir = new THREE.Vector3(normX, 0, normZ);
-        dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotation.current.yaw);
+        const nx = camera.position.x + _dir.x * speed;
+        const nz = camera.position.z + _dir.z * speed;
 
-        const nextX = camera.position.x + dir.x * moveSpeed;
-        const nextZ = camera.position.z + dir.z * moveSpeed;
-
-        if (!isNaN(nextX) && !isNaN(nextZ)) {
-          if (!checkCollision(nextX, camera.position.z, unlockedRooms)) {
-            camera.position.x = nextX;
-          }
-          if (!checkCollision(camera.position.x, nextZ, unlockedRooms)) {
-            camera.position.z = nextZ;
-          }
-        }
+        if (!checkCollision(nx, camera.position.z, unlockedRooms)) camera.position.x = nx;
+        if (!checkCollision(camera.position.x, nz, unlockedRooms)) camera.position.z = nz;
       }
     }
 
-    camera.position.y = 1.6; // Stand height
-    onInteractCheck(camera.position);
+    camera.position.y = 1.6;
+
+    /* ── Interact check — every 10 frames (~6× per second at 60fps) ── */
+    frameCount.current++;
+    if (frameCount.current >= 10) {
+      frameCount.current = 0;
+      _camPos.copy(camera.position);
+      onInteractCheck(_camPos);
+    }
   });
 
   return null;
