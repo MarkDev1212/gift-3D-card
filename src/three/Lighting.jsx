@@ -1,57 +1,106 @@
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { checkMobile, isLowEnd } from '../utils/device';
 
-// Slowly breathing point light for the surprise room
-function BreathingLight({ position, color, baseIntensity, amplitude }) {
+const MOBILE  = checkMobile();
+const LOW_END = isLowEnd();
+
+/**
+ * PERFORMANCE RULES
+ * ─────────────────
+ * • NO castShadow / receiveShadow anywhere — shadow maps are expensive.
+ * • Low-end: only ambient + 1 directional + 1 per-room point light (4 total).
+ * • Mobile: ambient + directional + 2 per-room lights (9 total, no spot).
+ * • Desktop: full set with spot and breathing light.
+ * • The breathing light uses sin() on intensity only — no material updates.
+ */
+
+function BreathingLight({ position, color, base, amp }) {
   const ref = useRef();
   useFrame((state) => {
     if (ref.current) {
-      ref.current.intensity =
-        baseIntensity + Math.sin(state.clock.elapsedTime * 1.8) * amplitude;
+      ref.current.intensity = base + Math.sin(state.clock.elapsedTime * 1.8) * amp;
     }
   });
-  return <pointLight ref={ref} position={position} color={color} intensity={baseIntensity} distance={10} castShadow={false} />;
+  return (
+    <pointLight ref={ref} position={position} color={color}
+      intensity={base} distance={9} decay={2} />
+  );
 }
 
 export default function Lighting({ isFinalScene }) {
+  if (LOW_END) {
+    // Ultra-minimal: 1 ambient + 1 directional + 4 room key lights
+    return (
+      <>
+        <ambientLight intensity={0.5} color="#ffe8d6" />
+        <directionalLight position={[4, 9, 6]} intensity={0.8} color="#fff5e6" />
+        <pointLight position={[0, 3, -1]}   color="#ffcc88" intensity={2.5} distance={8}  decay={2} />
+        <pointLight position={[0, 3, -8]}   color="#ff9988" intensity={2.5} distance={8}  decay={2} />
+        <pointLight position={[0, 3, -16]}  color="#cc99ff" intensity={2.5} distance={8}  decay={2} />
+        <pointLight position={[0, 3, -24]}  color="#ff4b72"
+          intensity={isFinalScene ? 5 : 3.5} distance={9} decay={2} />
+      </>
+    );
+  }
+
+  if (MOBILE) {
+    // Mobile: ambient + directional + 2 lights per room (no spot, no breathing)
+    return (
+      <>
+        <ambientLight intensity={0.38} color="#ffe8d6" />
+        <directionalLight position={[4, 9, 6]} intensity={0.85} color="#fff5e6" />
+
+        {/* Room 1 */}
+        <pointLight position={[0,  3.0, -0.8]}  color="#ffcc88" intensity={2.8} distance={8} decay={2} />
+        <pointLight position={[-2, 1.5, -1.5]}  color="#ffaa55" intensity={1.4} distance={5} decay={2} />
+
+        {/* Room 2 */}
+        <pointLight position={[0,  3.0, -8.0]}  color="#ff9988" intensity={2.8} distance={9} decay={2} />
+        <pointLight position={[-2, 1.8, -7.5]}  color="#cc6688" intensity={1.4} distance={5} decay={2} />
+
+        {/* Room 3 */}
+        <pointLight position={[0,  3.0, -16.0]} color="#cc99ff" intensity={2.8} distance={9} decay={2} />
+        <pointLight position={[-2, 2.0, -15.5]} color="#9966cc" intensity={1.4} distance={5} decay={2} />
+
+        {/* Room 4 */}
+        <pointLight position={[0,  3.2, -24.0]} color="#ff4b72"
+          intensity={isFinalScene ? 5.0 : 3.5} distance={9} decay={2} />
+        <pointLight position={[0,  1.8, -25.0]} color="#ff6b8a" intensity={1.8} distance={6} decay={2} />
+      </>
+    );
+  }
+
+  // Desktop: full lighting with breathing + spot
   return (
     <>
-      {/* Soft warm ambient — never fully dark */}
       <ambientLight intensity={0.35} color="#ffe8d6" />
+      <directionalLight position={[4, 9, 6]} intensity={isFinalScene ? 0.6 : 0.9} color="#fff5e6" />
 
-      {/* Main directional key light */}
-      <directionalLight
-        position={[4, 9, 6]}
-        intensity={isFinalScene ? 0.6 : 0.9}
-        color="#fff5e6"
-        castShadow={false}
-      />
+      {/* Room 1 */}
+      <pointLight position={[0,  3.0, -0.8]}  color="#ffcc88" intensity={3.0} distance={8}  decay={2} />
+      <pointLight position={[-2, 1.5, -1.5]}  color="#ffaa55" intensity={1.5} distance={5}  decay={2} />
+      <pointLight position={[ 2, 1.5, -1.5]}  color="#ffaa55" intensity={1.5} distance={5}  decay={2} />
 
-      {/* ── Room 1: Entry Lounge — warm candlelight ── */}
-      <pointLight position={[0,  3.0, -0.8]}  intensity={3.0} color="#ffcc88" distance={8}  decay={2} />
-      <pointLight position={[-2, 1.5, -1.5]}  intensity={1.5} color="#ffaa55" distance={5}  decay={2} />
-      <pointLight position={[ 2, 1.5, -1.5]}  intensity={1.5} color="#ffaa55" distance={5}  decay={2} />
+      {/* Room 2 */}
+      <pointLight position={[0,  3.0, -8.0]}  color="#ff9988" intensity={3.0} distance={9}  decay={2} />
+      <pointLight position={[-2, 1.8, -7.5]}  color="#cc6688" intensity={1.8} distance={5}  decay={2} />
+      <pointLight position={[ 2, 1.8, -7.5]}  color="#cc6688" intensity={1.8} distance={5}  decay={2} />
 
-      {/* ── Room 2: Bedroom — soft rose glow ── */}
-      <pointLight position={[0,  3.0, -8.0]}  intensity={3.0} color="#ff9988" distance={9}  decay={2} />
-      <pointLight position={[-2, 1.8, -7.5]}  intensity={1.8} color="#cc6688" distance={5}  decay={2} />
-      <pointLight position={[ 2, 1.8, -7.5]}  intensity={1.8} color="#cc6688" distance={5}  decay={2} />
+      {/* Room 3 */}
+      <pointLight position={[0,  3.0, -16.0]} color="#cc99ff" intensity={3.0} distance={9}  decay={2} />
+      <pointLight position={[-2, 2.0, -15.5]} color="#9966cc" intensity={1.6} distance={5}  decay={2} />
+      <pointLight position={[ 2, 2.0, -15.5]} color="#9966cc" intensity={1.6} distance={5}  decay={2} />
 
-      {/* ── Room 3: Gallery — cool violet accent ── */}
-      <pointLight position={[0,  3.0, -16.0]} intensity={3.0} color="#cc99ff" distance={9}  decay={2} />
-      <pointLight position={[-2, 2.0, -15.5]} intensity={1.6} color="#9966cc" distance={5}  decay={2} />
-      <pointLight position={[ 2, 2.0, -15.5]} intensity={1.6} color="#9966cc" distance={5}  decay={2} />
-
-      {/* ── Room 4: Surprise — pulsing romantic rose ── */}
+      {/* Room 4 — breathing + spot */}
       <BreathingLight
         position={[0, 3.2, -24.0]}
         color="#ff4b72"
-        baseIntensity={isFinalScene ? 5.0 : 4.0}
-        amplitude={isFinalScene ? 1.8 : 0.8}
+        base={isFinalScene ? 5.0 : 4.0}
+        amp={isFinalScene ? 1.8 : 0.8}
       />
-      <pointLight position={[-2.2, 1.8, -23.5]} intensity={2.0} color="#ff6b8a" distance={6}  decay={2} />
-      <pointLight position={[ 2.2, 1.8, -23.5]} intensity={2.0} color="#ff6b8a" distance={6}  decay={2} />
-      {/* Gift box spotlight */}
+      <pointLight position={[-2.2, 1.8, -23.5]} color="#ff6b8a" intensity={2.0} distance={6} decay={2} />
+      <pointLight position={[ 2.2, 1.8, -23.5]} color="#ff6b8a" intensity={2.0} distance={6} decay={2} />
       <spotLight
         position={[0, 3.4, -25.0]}
         intensity={isFinalScene ? 6 : 3}
