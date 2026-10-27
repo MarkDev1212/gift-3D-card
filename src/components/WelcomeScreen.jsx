@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import giftConfig from '../config/giftConfig';
 
-const HEARTS = ['❤️', '💕', '✨', '💖', '🌹', '💗', '⭐', '💫', '🌸', '💝', '✦', '❤️'];
+const HEARTS = ['💛', '✨', '🌟', '💫', '⭐', '🎁', '🌸', '💝', '✦', '🎊', '💛', '✨'];
 
 export default function WelcomeScreen({ onStart }) {
   const floatingHearts = useMemo(() =>
@@ -17,10 +17,9 @@ export default function WelcomeScreen({ onStart }) {
 
   return (
     <div className="welcome-screen">
-      {/* Ambient background glow */}
       <div className="welcome-bg-glow" />
 
-      {/* Floating hearts */}
+      {/* Floating icons */}
       <div className="hearts-bg" aria-hidden="true">
         {floatingHearts.map((h) => (
           <span
@@ -39,30 +38,23 @@ export default function WelcomeScreen({ onStart }) {
 
       {/* Main card */}
       <div className="welcome-content">
-        {/* Animated icon with orbit ring */}
         <div className="welcome-icon-wrap">
-          <span className="welcome-icon">💝</span>
+          <span className="welcome-icon">🎁</span>
           <div className="icon-ring" />
         </div>
 
-        {/* Eyebrow */}
-        <p className="welcome-eyebrow">A Special Gift For You</p>
+        <p className="welcome-eyebrow">ለምርጥ ጓደኛዬ — surprize! 🎉</p>
 
-        {/* Title */}
         <h1 className="welcome-title">{giftConfig.title}</h1>
 
-        {/* Divider */}
         <div className="welcome-divider" />
 
-        {/* Subtitle */}
         <p className="welcome-subtitle">{giftConfig.subtitle}</p>
 
-        {/* CTA Button */}
-        <button className="enter-button" onClick={onStart} aria-label="Enter the gift world">
-          ✨ Enter My World ✨
+        <button className="enter-button" onClick={onStart} aria-label="ጀምር">
+          ✨ enter✨
         </button>
 
-        {/* Audio hint */}
         <div className="audio-hint">
           <span className="audio-hint-icon">🎧</span>
           <span>{giftConfig.headphonesHint}</span>
